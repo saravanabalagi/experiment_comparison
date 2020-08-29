@@ -1,9 +1,7 @@
 <script>
-    let imageFileValue;
-    let imageFilePathValue;
-    import { imageFile, imageFilePath } from "./stores";
-    const unsubscribeImageFile = imageFile.subscribe(val => imageFileValue = val);
-    const unsubscribeImageFilePath = imageFilePath.subscribe(val => imageFilePathValue = val);
+    import { filePath, allowedExtensions } from "./stores";
+    import * as path from 'path';
+    $: extname = path.extname($filePath).slice(1);
 </script>
 
 <style>
@@ -13,9 +11,9 @@
 </style>
 
 <div class="viewer">
-    {imageFilePathValue+'/'+imageFileValue}
-    {#if imageFileValue && imageFilePathValue}
+    {$filePath}
+    {#if (allowedExtensions.includes(extname))}
         <img alt="Experiment Result" style="height: 700px; width: auto"
-            src={`/getImage?path=${imageFilePathValue}/${imageFileValue}`} />
+            src={`/getImage?path=${$filePath}`} />
     {/if}
 </div>

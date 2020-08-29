@@ -1,45 +1,99 @@
 <script>
-	import Experiments from "./Experiments.svelte";
-	let path = '.';
+	import {filePath, currentPath, currentPathIndex, allowedExtensions, operationMode, operationModes} from "./stores";
+	import * as path from 'path';
+	export let level;
 
-	const isExperimentPresent = (files) => files.filter(e => e.directory && e.name === 'experiments').length === 1;
-	async function fetchFiles(path) {
-		const pathStr = (path == null || path === '.') ? "" : `?path=${path}`
+	let cPath, currentPathTokens;
+	$: {
+		currentPathTokens = $currentPath.split('/');
+		cPath = getExplorerPath(currentPathTokens, level); // Current Path of this Component
+	}
+
+
+	function getExplorerPath(pathTokens, level) {
+		if(level === -1) return '.';
+		else return path.join(...pathTokens.slice(0,level+1));
+	}
+
+	let files, selectedIndex, selectedFileName;
+	$: if (files != null && selectedIndex != null) {
+		if($operationMode === operationModes.index) {
+			selectedFileName = files[selectedIndex].name;
+			if(files[selectedIndex].directory) {
+				if (currentPathTokens[level + 1] !== selectedFileName)
+					setSelectedFolder(selectedIndex);
+			}
+			else {
+				if ($filePath != null && selectedFileName !== path.basename($filePath))
+					setSelectedFile(selectedIndex);
+			}
+		}
+
+		if($operationMode === operationModes.name) {
+			const requiredIndexFiles = files.filter(f => f.name === currentPathTokens[level+1]);
+			if(requiredIndexFiles.length > 0)
+			{
+				const requiredFile = requiredIndexFiles[0];
+				selectedFileName = requiredFile.name;
+				if(requiredFile.directory) setSelectedFolder(requiredFile.index);
+				else setSelectedFile(requiredFile.index);
+			} else selectedFileName = null;
+		}
+	}
+
+	function setSelectedFolder(i) {
+		const file = files[i];
+		selectedIndex = i;
+		const pathTokens = [...currentPathTokens];
+		pathTokens[level+1] = file.name;
+		currentPath.set(pathTokens.join('/'));
+		currentPathIndex.update(e => [...e.slice(0, level+1), file.index, ...e.slice(level+2)]);
+	}
+
+	function setSelectedFile(i) {
+		const file = files[i];
+		selectedIndex = i;
+		currentPath.set(cPath);
+		currentPathIndex.update(e => [...e.slice(0, level+1), file.index]);
+		filePath.set(path.join(cPath, file.name));
+	}
+
+	$: promise = fetchFiles(cPath);
+	async function fetchFiles(rPath) {
+		const pathStr = (rPath == null || rPath === '.') ? "" : `?path=${rPath}`
 		const url = `/files${pathStr}`;
 		const response = await fetch(url);
-		return await response.json();
+		if(response.ok) {
+			const responseJson = await response.json();
+			files = responseJson.map((e,i) => ({...e, index: i}));
+			return files;
+		} else throw new Error(await response.text());
 	}
 
-	function setChildPath(filename) {
-		path = `${path}/${filename}`;
-	}
-
-	function setParentPath() {
-		const pathTokens = path.split('/');
-		path = pathTokens.slice(0, pathTokens.length - 1).join('/');
-	}
 </script>
 
 <div class="explorer">
-	{#await fetchFiles(path)}
+<!--	cPath: {cPath} <br/>-->
+<!--	Selected: {selectedFileName} {level}-->
+	{#await promise}
 		<p>Loading...</p>
-	{:then files}
-		<div>
-			{#if isExperimentPresent(files)}
-				<Experiments path={`${path}/experiments`} folder={'.'} fetchFiles={fetchFiles} level={1} />
-			{:else}
-				Explorer Mode
-				<div class="files">
-					{#if path!=='.'}
-						<div on:click={setParentPath}>Parent Folder</div>
-					{/if}
-					{#each files as file}
-						<div on:click={() => setChildPath(file.name)}>{file.directory?"Folder":"File"} {file.name}</div>
-					{/each}
-				</div>
+	{:then response}
+		{#each files as file, i}
+			{#if file.directory}
+				<div class:active="{file.name === selectedFileName}"
+					 on:click={() => setSelectedFolder(i)}> {file.name} </div>
+			{:else if allowedExtensions.some(e => file.name.endsWith(e))}
+				<div class:active="{file.name === selectedFileName}"
+					 on:click={() => setSelectedFile(i)}> {file.name} </div>
 			{/if}
-		</div>
+		{/each}
 	{:catch error}
-		Error: {error}
+		{error}
 	{/await}
 </div>
+
+<style>
+	.active {
+		background-color: #ccc;
+	}
+</style>
