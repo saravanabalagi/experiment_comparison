@@ -16,34 +16,33 @@
 	}
 
 	let files, selectedIndex, selectedFileName;
-	$: if (files != null && selectedIndex != null) {
-		if($operationMode === operationModes.index) {
-			selectedFileName = files[selectedIndex].name;
-			if(files[selectedIndex].directory) {
-				if (currentPathTokens[level + 1] !== selectedFileName)
-					setSelectedFolder(selectedIndex);
-			}
-			else {
-				if ($filePath != null && selectedFileName !== path.basename($filePath))
-					setSelectedFile(selectedIndex);
-			}
+	$: if (files != null && selectedIndex != null && $operationMode === operationModes.index) {
+		selectedFileName = files[selectedIndex].name;
+		if (files[selectedIndex].directory) {
+			if (currentPathTokens[level + 1] !== selectedFileName)
+				setSelectedFolder(selectedIndex);
+		} else {
+			if ($filePath != null && selectedFileName !== path.basename($filePath))
+				setSelectedFile(selectedIndex);
 		}
+	}
 
-		if($operationMode === operationModes.name) {
-			const requiredIndexFiles = files.filter(f => f.name === currentPathTokens[level+1]);
-			if(requiredIndexFiles.length > 0)
-			{
-				const requiredFile = requiredIndexFiles[0];
-				selectedFileName = requiredFile.name;
-				if(requiredFile.directory) setSelectedFolder(requiredFile.index);
-				else setSelectedFile(requiredFile.index);
-			} else selectedFileName = null;
+	$: if(files != null && selectedFileName != null && $operationMode === operationModes.name) {
+		const reqFiles = files.filter(f => f.name === selectedFileName);
+		if (reqFiles.length > 0) {
+			const reqFile = reqFiles[0];
+			if(reqFile.directory) setSelectedFolder(reqFile.index);
+			else setSelectedFile(reqFile.index);
+		} else {
+			currentPath.set(cPath);
+			currentPathIndex.update(e => [...e.slice(0, level+1)]);
 		}
 	}
 
 	function setSelectedFolder(i) {
 		const file = files[i];
 		selectedIndex = i;
+		if($operationMode === operationModes.name) selectedFileName = file.name;
 		const pathTokens = [...currentPathTokens];
 		pathTokens[level+1] = file.name;
 		currentPath.set(pathTokens.join('/'));
@@ -53,6 +52,7 @@
 	function setSelectedFile(i) {
 		const file = files[i];
 		selectedIndex = i;
+		if($operationMode === operationModes.name) selectedFileName = file.name;
 		currentPath.set(cPath);
 		currentPathIndex.update(e => [...e.slice(0, level+1), file.index]);
 		filePath.set(path.join(cPath, file.name));
@@ -80,10 +80,10 @@
 	{:then response}
 		{#each files as file, i}
 			{#if file.directory}
-				<div class:active="{file.name === selectedFileName}"
+				<div class="explorerContent directory" class:active="{file.name === selectedFileName}"
 					 on:click={() => setSelectedFolder(i)}> {file.name} </div>
 			{:else if allowedExtensions.some(e => file.name.endsWith(e))}
-				<div class:active="{file.name === selectedFileName}"
+				<div class="explorerContent file" class:active="{file.name === selectedFileName}"
 					 on:click={() => setSelectedFile(i)}> {file.name} </div>
 			{/if}
 		{/each}
@@ -93,6 +93,9 @@
 </div>
 
 <style>
+	.explorerContent {
+		padding: 0 10px;
+	}
 	.active {
 		background-color: #ccc;
 	}
