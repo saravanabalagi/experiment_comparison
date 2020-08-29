@@ -3,11 +3,11 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const pino = require('express-pino-logger')();
 const fs = require('fs');
-const pathUtils = require('path');
-const {argv} = require('yargs')
+const path = require('path');
+const { argv } = require('yargs')
 const { spawn } = require('child_process');
 
-const appDir = pathUtils.dirname(__dirname);
+const appDir = path.dirname(__dirname);
 let projectFolder = argv.project;
 
 if (projectFolder == null) {
@@ -25,10 +25,10 @@ app.use(bodyParser.urlencoded({extended: false}));
 app.use(pino);
 
 // Serve svelte app
-const clientBuildPath = pathUtils.join(pathUtils.dirname(__dirname), 'client', 'public');
+const clientBuildPath = path.join(path.dirname(__dirname), 'client', 'public');
 app.use(express.static(clientBuildPath))
 app.get('/', (req, res) => {
-  res.sendFile(pathUtils.join(clientBuildPath, 'index.html'))
+  res.sendFile(path.join(clientBuildPath, 'index.html'))
 })
 
 // Test Path
@@ -40,18 +40,18 @@ app.get('/api/greeting', (req, res) => {
 
 // Serve Files
 app.get('/files', (req, res) => {
-  const path = req.query.path || projectFolder;
+  const reqPath = req.query.path || projectFolder;
 
-  if(path.startsWith("/") &&!path.startsWith(projectFolder))
+  if(reqPath.startsWith("/") &&!reqPath.startsWith(projectFolder))
     res.send(JSON.stringify({error: 'permission denied'}));
 
-  if(!fs.existsSync(path)) {
+  if(!fs.existsSync(reqPath)) {
     res.statusCode = 404;
     res.send(JSON.stringify({error: "404 File not found"}));
-  } else fs.readdir(path, (err, files) => {
+  } else fs.readdir(reqPath, (err, files) => {
     res.setHeader('Content-Type', 'application/json');
     files = files.map(file => {
-      let stats = fs.lstatSync(pathUtils.join(path, file));
+      let stats = fs.lstatSync(path.join(reqPath, file));
       return {name: file, directory: stats.isDirectory(), file: stats.isFile()};
     });
     res.send(JSON.stringify(files));
@@ -70,12 +70,12 @@ const pathExists = (filePath, res) => {
 
 // Get Image File
 app.get('/getImage', (req, res) => {
-  let path = pathUtils.join(projectFolder, req.query.path);
-  if(!pathExists(path, res)) return;
-  let extname = pathUtils.extname(path).slice(1);
-  const allowedExtensions = ['jpg', 'png', 'jpeg'];
+  let reqPath = path.join(projectFolder, req.query.path);
+  if(!pathExists(reqPath, res)) return;
+  let extname = path.extname(reqPath).slice(1);
+  const allowedExtensions = ['jpg', 'png', 'jpeg', 'gif'];
   if (allowedExtensions.includes(extname))
-    res.sendFile(path);
+    res.sendFile(reqPath);
   else res.send(JSON.stringify({error: `File type should be one of ${allowedExtensions}`}))
 });
 
@@ -91,8 +91,10 @@ app.get('/exec', (req, res) => {
   child.stdout.on('data', (chunk) => {
     // data from the standard output is here as buffers
   });
+
   // since these are streams, you can pipe them elsewhere
-  child.stderr.pipe(dest);
+  // child.stderr.pipe(dest);
+
   child.on('close', (code) => {
     console.log(`child process exited with code ${code}`);
   });
