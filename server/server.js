@@ -40,7 +40,7 @@ app.get('/api/greeting', (req, res) => {
 
 // Serve Files
 app.get('/files', (req, res) => {
-  const reqPath = req.query.path || projectFolder;
+  const reqPath = path.join(projectFolder, req.query.path || '.');
 
   if(reqPath.startsWith("/") &&!reqPath.startsWith(projectFolder))
     res.send(JSON.stringify({error: 'permission denied'}));
