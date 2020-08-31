@@ -75,7 +75,7 @@ app.get('/getImage', (req, res) => {
   let extname = path.extname(reqPath).slice(1);
   const allowedExtensions = ['jpg', 'png', 'jpeg', 'gif'];
   if (allowedExtensions.includes(extname))
-    res.sendFile(reqPath);
+    res.sendFile(path.resolve(reqPath));
   else res.send(JSON.stringify({error: `File type should be one of ${allowedExtensions}`}))
 });
 
